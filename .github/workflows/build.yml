@@ -1,0 +1,45 @@
+name: Build LutHdrFilter
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout LutHdrFilter
+        uses: actions/checkout@v4
+
+      - name: Checkout DirectShow BaseClasses
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/Windows-classic-samples
+          path: winsamples
+          sparse-checkout: |
+            Samples/Win7Samples/multimedia/directshow/baseclasses
+          sparse-checkout-cone-mode: false
+
+      - name: Setup MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure LutHdrFilter
+        shell: cmd
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 ^
+            -DBASECLASSES_DIR="${{ github.workspace }}\winsamples\Samples\Win7Samples\multimedia\directshow\baseclasses"
+
+      - name: Build LutHdrFilter
+        shell: cmd
+        run: cmake --build build --config Release --verbose
+
+      - name: Upload compiled .ax
+        uses: actions/upload-artifact@v4
+        with:
+          name: LutHdrFilter-ax
+          path: build/Release/LutHdrFilter.ax
+          if-no-files-found: error
