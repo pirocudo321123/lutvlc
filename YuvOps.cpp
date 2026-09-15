@@ -192,20 +192,42 @@ void ProcessFrameP010(
     const ToneMapSettings& toneMap,
     const Lut3D& lut)
 {
+    void ProcessFrameI420_10(
+    uint16_t* yPlane,
+    uint16_t* uPlane,
+    uint16_t* vPlane,
+    int width,
+    int height,
+    int yStrideBytes,
+    int uStrideBytes,
+    int vStrideBytes,
+    const DetectedColorInfo& colorInfo,
+    const ToneMapSettings& toneMap,
+    const Lut3D& lut)
+{
     const YuvMatrixCoeffs coeffs = GetMatrixCoeffs(colorInfo.matrix);
     const bool limited = IsLimitedRange(colorInfo);
 
     const int yStrideSamples = yStrideBytes / 2;
-    const int uvStrideSamples = uvStrideBytes / 2;
+    const int uStrideSamples = uStrideBytes / 2;
+    const int vStrideSamples = vStrideBytes / 2;
 
+    // I420 planar 4:2:0: U/V are each quarter-resolution, one sample per 2x2 luma
+    // block - same block structure as NV12/P010's shared UV sample, just split
+    // across two planes instead of interleaved in one.
     for (int by = 0; by < height; by += 2)
     {
         for (int bx = 0; bx < width; bx += 2)
         {
-            uint16_t* uv = uvPlane + static_cast<size_t>(by / 2) * uvStrideSamples + (bx / 2) * 2;
-            // P010 stores its 10-bit value in the top 10 bits of each 16-bit word.
-            const uint16_t cb10 = uv[0] >> 6;
-            const uint16_t cr10 = uv[1] >> 6;
+            const int ux = bx / 2;
+            const int uy = by / 2;
+            uint16_t* uSample = uPlane + static_cast<size_t>(uy) * uStrideSamples + ux;
+            uint16_t* vSample = vPlane + static_cast<size_t>(uy) * vStrideSamples + ux;
+
+            // NOTE: no >>6 here - I420_10L samples are already right-aligned 0-1023,
+            // unlike P010's MSB-aligned convention.
+            const uint16_t cb10 = *uSample;
+            const uint16_t cr10 = *vSample;
 
             float cbSum = 0.0f, crSum = 0.0f;
             int count = 0;
@@ -215,7 +237,7 @@ void ProcessFrameP010(
                 for (int dx = 0; dx < 2 && (bx + dx) < width; ++dx)
                 {
                     uint16_t* yPixel = yPlane + static_cast<size_t>(by + dy) * yStrideSamples + (bx + dx);
-                    const uint16_t y10 = *yPixel >> 6;
+                    const uint16_t y10 = *yPixel;
 
                     float yy, ccb, ccr;
                     NormalizeYCbCr10(y10, cb10, cr10, limited, yy, ccb, ccr);
@@ -233,7 +255,7 @@ void ProcessFrameP010(
                     uint16_t ny10, ncb10, ncr10;
                     DenormalizeYCbCr10(ny, ncb, ncr, limited, ny10, ncb10, ncr10);
 
-                    *yPixel = static_cast<uint16_t>(ny10 << 6);
+                    *yPixel = ny10; // right-aligned, no <<6
                     cbSum += ncb10;
                     crSum += ncr10;
                     ++count;
@@ -242,10 +264,8 @@ void ProcessFrameP010(
 
             if (count > 0)
             {
-                const uint16_t avgCb = static_cast<uint16_t>(cbSum / count + 0.5f);
-                const uint16_t avgCr = static_cast<uint16_t>(crSum / count + 0.5f);
-                uv[0] = static_cast<uint16_t>(avgCb << 6);
-                uv[1] = static_cast<uint16_t>(avgCr << 6);
+                *uSample = static_cast<uint16_t>(cbSum / count + 0.5f);
+                *vSample = static_cast<uint16_t>(crSum / count + 0.5f);
             }
         }
     }
