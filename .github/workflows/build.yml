@@ -8,7 +8,7 @@ on:
 env:
   # VLC's classic filter_t API (what lut_hdr_vlc.cpp is written against) is the
   # 3.x series. Don't point this at a 4.x nightly SDK - the filter API changed.
-  VLC_VERSION: 3.0.20
+  VLC_VERSION: 3.0.23
 
 jobs:
   build:
@@ -28,7 +28,7 @@ jobs:
           # windows-2022 runner images ship 7-Zip in PATH as `7z`.
           7z x vlc.7z -ovlc_extracted | Out-Null
 
-          # Extracts to a version-named subfolder (e.g. vlc_extracted\vlc-3.0.20).
+          # Extracts to a version-named subfolder (e.g. vlc_extracted\vlc-3.0.23).
           # Resolve it dynamically rather than hardcoding, and fail loudly with a
           # directory listing if the archive layout ever changes.
           $vlcRoot = Get-ChildItem -Path vlc_extracted -Directory | Select-Object -First 1
