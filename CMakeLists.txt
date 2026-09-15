@@ -46,6 +46,10 @@ target_link_libraries(lut_hdr_plugin PRIVATE
     ws2_32
 )
 
+target_link_options(lut_hdr_plugin PRIVATE
+    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/liblut_hdr_plugin.def"
+)
+
 target_compile_definitions(lut_hdr_plugin PRIVATE
     __PLUGIN__
     MODULE_STRING="lut_hdr"
