@@ -55,3 +55,21 @@ void ProcessFrameP010(
     const DetectedColorInfo& colorInfo,
     const ToneMapSettings& toneMap,
     const Lut3D& lut);
+// Processes a planar 10-bit 4:2:0 frame (VLC_CODEC_I420_10L - separate Y/U/V
+// planes, each own stride) in place. Unlike P010, each 16-bit sample here is
+// right-aligned (raw value 0-1023, NO <<6 MSB shift) - this is ffmpeg's
+// yuv420p10le layout, which is what VLC's D3D11 readback (d3d11_filters) and
+// software HEVC 10-bit decode both actually hand out; P010 alone never appears
+// here in practice.
+void ProcessFrameI420_10(
+    uint16_t* yPlane,
+    uint16_t* uPlane,
+    uint16_t* vPlane,
+    int width,
+    int height,
+    int yStrideBytes,
+    int uStrideBytes,
+    int vStrideBytes,
+    const DetectedColorInfo& colorInfo,
+    const ToneMapSettings& toneMap,
+    const Lut3D& lut);
