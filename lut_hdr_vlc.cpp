@@ -407,3 +407,12 @@ vlc_module_begin()
     add_shortcut("lut_hdr")
     set_callbacks(Open, Close)
 vlc_module_end()
+
+// vlc_module_end() does NOT auto-generate these - they're a separate opt-in
+// export (VLC_META_EXPORT). VLC's module prober requires vlc_entry_copyright__
+// and vlc_entry_license__ to resolve alongside vlc_entry__, or it silently
+// rejects the whole plugin as invalid - confirmed by comparing exports against
+// a real shipped plugin (libinvert_plugin exports all three; ours previously
+// only exported vlc_entry__3_0_0f).
+VLC_META_EXPORT(copyright, "Copyright (C) 2026 LUT/HDR Filter authors")
+VLC_META_EXPORT(license, "GNU General Public License, version 2 or later")
