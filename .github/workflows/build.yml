@@ -1,71 +1,45 @@
-name: Build LutHdrVlcPlugin
+name: Build LutHdrFilter
 
 on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
 
-env:
-  # VLC's classic filter_t API (what lut_hdr_vlc.cpp is written against) is the
-  # 3.x series. Don't point this at a 4.x nightly SDK - the filter API changed.
-  VLC_VERSION: 3.0.23
-
 jobs:
   build:
     runs-on: windows-2022
 
     steps:
-      - name: Checkout plugin source
+      - name: Checkout LutHdrFilter
         uses: actions/checkout@v4
 
-      - name: Download and extract VLC SDK (win64)
-        shell: pwsh
-        run: |
-          $url = "https://download.videolan.org/pub/videolan/vlc/$env:VLC_VERSION/win64/vlc-$env:VLC_VERSION-win64.7z"
-          Write-Host "Downloading $url"
-          Invoke-WebRequest -Uri $url -OutFile vlc.7z
-
-          # windows-2022 runner images ship 7-Zip in PATH as `7z`.
-          7z x vlc.7z -ovlc_extracted | Out-Null
-
-          # Extracts to a version-named subfolder (e.g. vlc_extracted\vlc-3.0.23).
-          # Resolve it dynamically rather than hardcoding, and fail loudly with a
-          # directory listing if the archive layout ever changes.
-          $vlcRoot = Get-ChildItem -Path vlc_extracted -Directory | Select-Object -First 1
-          if (-not $vlcRoot) {
-            Write-Error "No extracted VLC directory found under vlc_extracted\"
-            Get-ChildItem -Path vlc_extracted -Recurse | Format-Table -AutoSize
-            exit 1
-          }
-
-          $sdkPath = Join-Path $vlcRoot.FullName "sdk"
-          if (-not (Test-Path $sdkPath)) {
-            Write-Error "No sdk\ folder found inside the extracted VLC archive at $($vlcRoot.FullName)"
-            Get-ChildItem -Path $vlcRoot.FullName | Format-Table -AutoSize
-            exit 1
-          }
-
-          Write-Host "VLC SDK resolved to: $sdkPath"
-          "VLC_SDK_DIR=$sdkPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Checkout DirectShow BaseClasses
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/Windows-classic-samples
+          path: winsamples
+          sparse-checkout: |
+            Samples/Win7Samples/multimedia/directshow/baseclasses
+          sparse-checkout-cone-mode: false
 
       - name: Setup MSVC dev environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      - name: Configure plugin
+      - name: Configure LutHdrFilter
         shell: cmd
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 ^
-            -DVLC_SDK_DIR="%VLC_SDK_DIR%"
+            -DBASECLASSES_DIR="${{ github.workspace }}\winsamples\Samples\Win7Samples\multimedia\directshow\baseclasses"
 
-      - name: Build plugin
+      - name: Build LutHdrFilter
         shell: cmd
         run: cmake --build build --config Release --verbose
 
-      - name: Upload compiled plugin DLL
+      - name: Upload compiled .ax
         uses: actions/upload-artifact@v4
         with:
-          name: lut_hdr_plugin-dll
-          path: build/Release/liblut_hdr_plugin.dll
+          name: LutHdrFilter-ax
+          path: build/Release/LutHdrFilter.ax
           if-no-files-found: error
